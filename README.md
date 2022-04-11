@@ -1,4 +1,4 @@
-# Linear-Regression-Project
+# Linear Regression Project
 
 In this project, I decided to use linear regression to investigate the following research question:
 
