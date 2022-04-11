@@ -1,0 +1,403 @@
+---
+title: "Final Project Part 3 - Code"
+author: "Mohsin Reza"
+output: html_notebook
+---
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+options(scipen = 100)
+install.packages("kableExtra", repos = "http://cran.us.r-project.org")
+library(kableExtra)
+library(knitr)
+library(car)
+```
+
+
+```{r}
+# Load the dataset
+data <- read.csv("Fire.csv", header = T)
+data <- data[-c(1981, 7876),]
+# Compute response times
+alarm <- as.POSIXct(data$TFS_Alarm_Time, format = '%Y-%m-%dT%H:%M:%S', tz=Sys.timezone())
+arrival <- as.POSIXct(data$TFS_Arrival_Time, format = '%Y-%m-%dT%H:%M:%S', tz=Sys.timezone())
+response_time <- as.numeric(difftime(arrival, alarm, units = "mins"))
+data$response_time <- response_time
+
+# Split data into training and test
+set.seed(1)
+train_ind <- sample(seq_len(nrow(data)), size = 8767, replace = FALSE)
+train <- data[train_ind, ]
+test <- data[-train_ind, ]
+```
+
+
+```{r}
+# Fit models for all possible combinations of predictors.
+response <- (train$Estimated_Dollar_Loss)
+mod1 <- lm(response ~ train$Number_of_responding_apparatus)
+mod2 <- lm(response ~ train$Number_of_responding_personnel)
+mod3 <- lm(response ~ train$response_time)
+mod4 <- lm(response ~ train$Number_of_responding_apparatus + train$Number_of_responding_personnel)
+mod5 <- lm(response ~ train$Number_of_responding_apparatus + train$response_time)
+mod6 <- lm(response ~ train$Number_of_responding_personnel + train$response_time)
+mod7 <- lm(response ~ train$Number_of_responding_personnel + train$response_time + train$Number_of_responding_apparatus)
+```
+
+# Checking assumptions, influential points for each model
+
+```{r}
+# Model 1 - Predictor(s) - Number of responding apparatus
+mod <- mod1
+summary(mod)
+r <- resid(mod)
+# Don't need to check condition 1 and 2 as this is simple regression
+plot(mod[["model"]][["response"]] ~ fitted(mod), main="Estimated Dollar Loss versus Predicted Estimated Dollar Loss", xlab="Y-hat", ylab="Y")
+
+# Make residual and qq plots
+plot(r ~ fitted(mod), main="title", xlab="Fitted", ylab="res.")
+plot(r ~ mod[["model"]][["train$Number_of_responding_apparatus"]], main="title", xlab="Number of responding apparatus", ylab="res")
+qqnorm(r)
+qqline(r)
+
+# Check if there are any influential points
+print("***** Influential Points *****")
+# Cook's Distance
+n <- length(mod[["model"]][["response"]])
+p <- length(coef(mod))-1
+Dcutoff <- qf(0.5, p+1, n-p-1)
+D <- cooks.distance(mod)
+paste("Using Cook's Distance, we get", as.character(sum(D > Dcutoff)), "influential points.", sep = " ")
+DFFITScut <- 2*sqrt((p+1)/n)
+dfs <- dffits(mod)
+paste("Using DFFITS, we get", as.character(sum(abs(dfs) > DFFITScut)), "influential points.", sep = " ")
+DFBETAcut <- 2/sqrt(n)
+dfb <- dfbetas(mod)
+paste("Using DFBETAS, for the intercept, we get", as.character(sum(abs(dfb[,1]) > DFBETAcut)), "influential points.", sep = " ")
+paste("Using DFBETAS, for predictor 1, we get", as.character(sum(abs(dfb[,2]) > DFBETAcut)), "influential points.", sep = " ")
+AICc1 <- AIC(mod) + (2*(p+2)*(p+3)/(n-p-1))
+```
+
+```{r}
+# Model 2 - Predictor(s) - Number of responding personnel
+mod <- mod2
+summary(mod)
+r <- resid(mod)
+# Don't need to check condition 1 and 2 as this is simple regression
+plot(mod[["model"]][["response"]] ~ fitted(mod), main="Estimated Dollar Loss versus Predicted Estimated Dollar Loss", xlab="Y-hat", ylab="Y")
+
+# Make residual and qq plots
+plot(r ~ fitted(mod), main="title", xlab="Fitted", ylab="res.")
+plot(r ~ mod[["model"]][["train$Number_of_responding_personnel"]], main="title", xlab="Number of responding personnel", ylab="res")
+qqnorm(r)
+qqline(r)
+
+# Check if there are any influential points
+print("***** Influential Points *****")
+# Cook's Distance
+n <- length(mod[["model"]][["response"]])
+p <- length(coef(mod))-1
+Dcutoff <- qf(0.5, p+1, n-p-1)
+D <- cooks.distance(mod)
+paste("Using Cook's Distance, we get", as.character(sum(D > Dcutoff)), "influential points.", sep = " ")
+DFFITScut <- 2*sqrt((p+1)/n)
+dfs <- dffits(mod)
+paste("Using DFFITS, we get", as.character(sum(abs(dfs) > DFFITScut)), "influential points.", sep = " ")
+DFBETAcut <- 2/sqrt(n)
+dfb <- dfbetas(mod)
+paste("Using DFBETAS, for the intercept, we get", as.character(sum(abs(dfb[,1]) > DFBETAcut)), "influential points.", sep = " ")
+paste("Using DFBETAS, for predictor 1, we get", as.character(sum(abs(dfb[,2]) > DFBETAcut)), "influential points.", sep = " ")
+AICc2 <- AIC(mod) + (2*(p+2)*(p+3)/(n-p-1))
+```
+
+```{r}
+# Model 3 - Predictor(s) - Response time
+mod <- mod3
+summary(mod)
+r <- resid(mod)
+# Don't need to check condition 1 and 2 as this is simple regression
+plot(mod[["model"]][["response"]] ~ fitted(mod), main="Estimated Dollar Loss versus Predicted Estimated Dollar Loss", xlab="Y-hat", ylab="Y")
+
+# Make residual and qq plots
+plot(r ~ fitted(mod), main="title", xlab="Fitted", ylab="res.")
+plot(r ~ mod[["model"]][["train$response_time"]], main="title", xlab="Response time (mins)", ylab="res")
+qqnorm(r)
+qqline(r)
+
+# Check if there are any influential points
+print("***** Influential Points *****")
+# Cook's Distance
+n <- length(mod[["model"]][["response"]])
+p <- length(coef(mod))-1
+Dcutoff <- qf(0.5, p+1, n-p-1)
+D <- cooks.distance(mod)
+paste("Using Cook's Distance, we get", as.character(sum(D > Dcutoff)), "influential points.", sep = " ")
+DFFITScut <- 2*sqrt((p+1)/n)
+dfs <- dffits(mod)
+paste("Using DFFITS, we get", as.character(sum(abs(dfs) > DFFITScut)), "influential points.", sep = " ")
+DFBETAcut <- 2/sqrt(n)
+dfb <- dfbetas(mod)
+paste("Using DFBETAS, for the intercept, we get", as.character(sum(abs(dfb[,1]) > DFBETAcut)), "influential points.", sep = " ")
+paste("Using DFBETAS, for predictor 1, we get", as.character(sum(abs(dfb[,2]) > DFBETAcut)), "influential points.", sep = " ")
+AICc3 <- AIC(mod) + (2*(p+2)*(p+3)/(n-p-1))
+```
+
+```{r}
+# Model 4 - Predictor(s) - Number of responding apparatus and Number of responding personnel
+mod <- mod4
+summary(mod)
+r <- resid(mod)
+# Check condition 1 and 2 as this is simple regression
+plot(mod[["model"]][["response"]] ~ fitted(mod), main="Estimated Dollar Loss versus Predicted Estimated Dollar Loss", xlab="Y-hat", ylab="Y")
+pairs(train[,c("Number_of_responding_apparatus", "Number_of_responding_personnel")])
+
+# Make residual and qq plots
+plot(r ~ fitted(mod), main="title", xlab="Fitted", ylab="res.")
+plot(r ~ mod[["model"]][["train$Number_of_responding_apparatus"]], main="title", xlab="Number of responding apparatus", ylab="res")
+plot(r ~ mod[["model"]][["train$Number_of_responding_personnel"]], main="title", xlab="Number of responding apparatus", ylab="res")
+qqnorm(r)
+qqline(r)
+
+# Check if there are any influential points
+print("***** Influential Points *****")
+# Cook's Distance
+n <- length(mod[["model"]][["response"]])
+p <- length(coef(mod))-1
+Dcutoff <- qf(0.5, p+1, n-p-1)
+D <- cooks.distance(mod)
+paste("Using Cook's Distance, we get", as.character(sum(D > Dcutoff)), "influential points.", sep = " ")
+DFFITScut <- 2*sqrt((p+1)/n)
+dfs <- dffits(mod)
+paste("Using DFFITS, we get", as.character(sum(abs(dfs) > DFFITScut)), "influential points.", sep = " ")
+DFBETAcut <- 2/sqrt(n)
+dfb <- dfbetas(mod)
+paste("Using DFBETAS, for the intercept, we get", as.character(sum(abs(dfb[,1]) > DFBETAcut)), "influential points.", sep = " ")
+paste("Using DFBETAS, for predictor 1, we get", as.character(sum(abs(dfb[,2]) > DFBETAcut)), "influential points.", sep = " ")
+paste("Using DFBETAS, for predictor 2, we get", as.character(sum(abs(dfb[,3]) > DFBETAcut)), "influential points.", sep = " ")
+
+# Check multicollinearity
+print("*****Multicollinearity*****")
+vif(mod)
+AICc4 <- AIC(mod) + (2*(p+2)*(p+3)/(n-p-1))
+```
+
+
+```{r}
+# Model 5 - Predictor(s) - Number of responding apparatus and Response time
+mod <- mod5
+summary(mod)
+r <- resid(mod)
+# Check condition 1 and 2 as this is simple regression
+plot(mod[["model"]][["response"]] ~ fitted(mod), main="Estimated Dollar Loss versus Predicted Estimated Dollar Loss", xlab="Y-hat", ylab="Y")
+pairs(train[,c("Number_of_responding_apparatus", "response_time")])
+
+# Make residual and qq plots
+plot(r ~ fitted(mod), main="title", xlab="Fitted", ylab="res.")
+plot(r ~ mod[["model"]][["train$Number_of_responding_apparatus"]], main="title", xlab="Number of responding apparatus", ylab="res")
+plot(r ~ mod[["model"]][["train$response_time"]], main="title", xlab="Response time (mins)", ylab="res")
+qqnorm(r)
+qqline(r)
+
+# Check if there are any influential points
+print("***** Influential Points *****")
+# Cook's Distance
+n <- length(mod[["model"]][["response"]])
+p <- length(coef(mod))-1
+Dcutoff <- qf(0.5, p+1, n-p-1)
+D <- cooks.distance(mod)
+paste("Using Cook's Distance, we get", as.character(sum(D > Dcutoff)), "influential points.", sep = " ")
+DFFITScut <- 2*sqrt((p+1)/n)
+dfs <- dffits(mod)
+paste("Using DFFITS, we get", as.character(sum(abs(dfs) > DFFITScut)), "influential points.", sep = " ")
+DFBETAcut <- 2/sqrt(n)
+dfb <- dfbetas(mod)
+paste("Using DFBETAS, for the intercept, we get", as.character(sum(abs(dfb[,1]) > DFBETAcut)), "influential points.", sep = " ")
+paste("Using DFBETAS, for predictor 1, we get", as.character(sum(abs(dfb[,2]) > DFBETAcut)), "influential points.", sep = " ")
+paste("Using DFBETAS, for predictor 2, we get", as.character(sum(abs(dfb[,3]) > DFBETAcut)), "influential points.", sep = " ")
+
+# Check multicollinearity
+print("*****Multicollinearity*****")
+vif(mod)
+AICc5 <- AIC(mod) + (2*(p+2)*(p+3)/(n-p-1))
+```
+
+```{r}
+# Model 6 - Predictor(s) - Number of responding personnel and Response time
+mod <- mod6
+summary(mod)
+r <- resid(mod)
+# Check condition 1 and 2 as this is simple regression
+plot(mod[["model"]][["response"]] ~ fitted(mod), main="Estimated Dollar Loss versus Predicted Estimated Dollar Loss", xlab="Y-hat", ylab="Y")
+pairs(train[,c("Number_of_responding_personnel", "response_time")])
+
+# Make residual and qq plots
+plot(r ~ fitted(mod), main="title", xlab="Fitted", ylab="res.")
+plot(r ~ mod[["model"]][["train$Number_of_responding_personnel"]], main="title", xlab="Number of responding personnel", ylab="res")
+plot(r ~ mod[["model"]][["train$response_time"]], main="title", xlab="Response time (mins)", ylab="res")
+qqnorm(r)
+qqline(r)
+
+# Check if there are any influential points
+print("***** Influential Points *****")
+# Cook's Distance
+n <- length(mod[["model"]][["response"]])
+p <- length(coef(mod))-1
+Dcutoff <- qf(0.5, p+1, n-p-1)
+D <- cooks.distance(mod)
+paste("Using Cook's Distance, we get", as.character(sum(D > Dcutoff)), "influential points.", sep = " ")
+DFFITScut <- 2*sqrt((p+1)/n)
+dfs <- dffits(mod)
+paste("Using DFFITS, we get", as.character(sum(abs(dfs) > DFFITScut)), "influential points.", sep = " ")
+DFBETAcut <- 2/sqrt(n)
+dfb <- dfbetas(mod)
+paste("Using DFBETAS, for the intercept, we get", as.character(sum(abs(dfb[,1]) > DFBETAcut)), "influential points.", sep = " ")
+paste("Using DFBETAS, for predictor 1, we get", as.character(sum(abs(dfb[,2]) > DFBETAcut)), "influential points.", sep = " ")
+paste("Using DFBETAS, for predictor 2, we get", as.character(sum(abs(dfb[,3]) > DFBETAcut)), "influential points.", sep = " ")
+vif(mod)
+AICc6 <- AIC(mod) + (2*(p+2)*(p+3)/(n-p-1))
+```
+
+```{r}
+# Model 7 - Predictor(s) - Number of responding personnel and Response time and Number of responding apparatus
+mod <- mod7
+summary(mod)
+r <- resid(mod)
+# Check condition 1 and 2 as this is simple regression
+plot(mod[["model"]][["response"]] ~ fitted(mod), main="Estimated Dollar Loss versus Predicted Estimated Dollar Loss", xlab="Y-hat", ylab="Y")
+pairs(train[,c("Number_of_responding_personnel", "response_time", "Number_of_responding_apparatus")])
+
+# Make residual and qq plots
+plot(r ~ fitted(mod), main="title", xlab="Fitted", ylab="res.")
+plot(r ~ mod[["model"]][["train$Number_of_responding_personnel"]], main="title", xlab="Number of responding personnel", ylab="res")
+plot(r ~ mod[["model"]][["train$response_time"]], main="title", xlab="Response time (mins)", ylab="res")
+plot(r ~ mod[["model"]][["train$Number_of_responding_apparatus"]], main="title", xlab="Response time (mins)", ylab="res")
+qqnorm(r)
+qqline(r)
+
+# Check if there are any influential points
+print("***** Influential Points *****")
+# Cook's Distance
+n <- length(mod[["model"]][["response"]])
+p <- length(coef(mod))-1
+Dcutoff <- qf(0.5, p+1, n-p-1)
+D <- cooks.distance(mod)
+paste("Using Cook's Distance, we get", as.character(sum(D > Dcutoff)), "influential points.", sep = " ")
+DFFITScut <- 2*sqrt((p+1)/n)
+dfs <- dffits(mod)
+paste("Using DFFITS, we get", as.character(sum(abs(dfs) > DFFITScut)), "influential points.", sep = " ")
+DFBETAcut <- 2/sqrt(n)
+dfb <- dfbetas(mod)
+paste("Using DFBETAS, for the intercept, we get", as.character(sum(abs(dfb[,1]) > DFBETAcut)), "influential points.", sep = " ")
+paste("Using DFBETAS, for predictor 1, we get", as.character(sum(abs(dfb[,2]) > DFBETAcut)), "influential points.", sep = " ")
+paste("Using DFBETAS, for predictor 2, we get", as.character(sum(abs(dfb[,3]) > DFBETAcut)), "influential points.", sep = " ")
+paste("Using DFBETAS, for predictor 3, we get", as.character(sum(abs(dfb[,4]) > DFBETAcut)), "influential points.", sep = " ")
+
+# Check multicollinearity
+print("*****Multicollinearity*****")
+vif(mod)
+AICc7 <- AIC(mod) + (2*(p+2)*(p+3)/(n-p-1))
+```
+
+# Compare all models
+
+```{r}
+preds <- c(length(coef(mod1))-1, length(coef(mod2))-1,
+length(coef(mod3))-1, length(coef(mod4))-1,
+length(coef(mod5))-1, length(coef(mod6))-1,
+length(coef(mod7))-1)
+
+rsq <-c(summary(mod1)$adj.r.squared, summary(mod2)$adj.r.squared, summary(mod3)$adj.r.squared, summary(mod4)$adj.r.squared,
+summary(mod5)$adj.r.squared, summary(mod6)$adj.r.squared, summary(mod7)$adj.r.squared)
+
+aic <- c(AIC(mod1), AIC(mod2), AIC(mod3), AIC(mod4), AIC(mod5), AIC(mod6), AIC(mod7))
+aicc <- c(AICc1, AICc2, AICc3, AICc4, AICc5, AICc6, AICc7)
+bic <- c(BIC(mod1), BIC(mod2), BIC(mod3), BIC(mod4), BIC(mod5), BIC(mod6), BIC(mod7))
+cbind(preds, rsq, aic, aicc, bic)
+```
+
+# Model Validation
+
+We chose model 6 as our final model. 
+
+```{r}
+# Build the same model with test dataset.
+response_test <- (test$Estimated_Dollar_Loss)^(1/4)
+mod6test <- lm(response_test ~ test$Number_of_responding_personnel + test$response_time)
+summary(mod6test)
+summary(mod6)
+```
+
+```{r}
+# Assumptions, influential observations, multicollinearity for train
+# Model 6 - Predictor(s) - Number of responding personnel and Response time
+mod <- mod6
+summary(mod)
+r <- resid(mod)
+# Check condition 1 and 2 as this is simple regression
+plot(mod[["model"]][["response"]] ~ fitted(mod), main="Estimated Dollar Loss versus Predicted Estimated Dollar Loss", xlab="Y-hat", ylab="Y")
+pairs(train[,c("Number_of_responding_personnel", "response_time")])
+
+# Make residual and qq plots
+plot(r ~ fitted(mod), main="title", xlab="Fitted", ylab="res.")
+plot(r ~ mod[["model"]][["train$Number_of_responding_personnel"]], main="title", xlab="Number of responding personnel", ylab="res")
+plot(r ~ mod[["model"]][["train$response_time"]], main="title", xlab="Response time (mins)", ylab="res")
+qqnorm(r)
+qqline(r)
+
+# Check if there are any influential points
+print("***** Influential Points *****")
+# Cook's Distance
+n <- length(mod[["model"]][["response"]])
+p <- length(coef(mod))-1
+Dcutoff <- qf(0.5, p+1, n-p-1)
+D <- cooks.distance(mod)
+paste("Using Cook's Distance, we get", as.character(sum(D > Dcutoff)), "influential points.", sep = " ")
+DFFITScut <- 2*sqrt((p+1)/n)
+dfs <- dffits(mod)
+paste("Using DFFITS, we get", as.character(sum(abs(dfs) > DFFITScut)), "influential points.", sep = " ")
+DFBETAcut <- 2/sqrt(n)
+dfb <- dfbetas(mod)
+paste("Using DFBETAS, for the intercept, we get", as.character(sum(abs(dfb[,1]) > DFBETAcut)), "influential points.", sep = " ")
+paste("Using DFBETAS, for predictor 1, we get", as.character(sum(abs(dfb[,2]) > DFBETAcut)), "influential points.", sep = " ")
+paste("Using DFBETAS, for predictor 2, we get", as.character(sum(abs(dfb[,3]) > DFBETAcut)), "influential points.", sep = " ")
+vif(mod)
+AICc6 <- AIC(mod) + (2*(p+2)*(p+3)/(n-p-1))
+```
+
+```{r}
+# Assumptions, influential observations, multicollinearity for train
+# Model 6 test - Predictor(s) - Number of responding personnel and Response time
+mod <- mod6test
+summary(mod)
+r <- resid(mod)
+# Check condition 1 and 2 as this is simple regression
+plot(mod[["model"]][["response_test"]] ~ fitted(mod), main="Estimated Dollar Loss versus Predicted Estimated Dollar Loss", xlab="Y-hat", ylab="Y")
+pairs(test[,c("Number_of_responding_personnel", "response_time")])
+
+# Make residual and qq plots
+plot(r ~ fitted(mod), main="title", xlab="Fitted", ylab="res.")
+plot(r ~ mod[["model"]][["test$Number_of_responding_personnel"]], main="title", xlab="Number of responding personnel", ylab="res")
+plot(r ~ mod[["model"]][["test$response_time"]], main="title", xlab="Response time (mins)", ylab="res")
+qqnorm(r)
+qqline(r)
+
+# Check if there are any influential points
+print("***** Influential Points *****")
+# Cook's Distance
+n <- length(mod[["model"]][["response_test"]])
+p <- length(coef(mod))-1
+Dcutoff <- qf(0.5, p+1, n-p-1)
+D <- cooks.distance(mod)
+paste("Using Cook's Distance, we get", as.character(sum(D > Dcutoff)), "influential points.", sep = " ")
+DFFITScut <- 2*sqrt((p+1)/n)
+dfs <- dffits(mod)
+paste("Using DFFITS, we get", as.character(sum(abs(dfs) > DFFITScut)), "influential points.", sep = " ")
+DFBETAcut <- 2/sqrt(n)
+dfb <- dfbetas(mod)
+paste("Using DFBETAS, for the intercept, we get", as.character(sum(abs(dfb[,1]) > DFBETAcut)), "influential points.", sep = " ")
+paste("Using DFBETAS, for predictor 1, we get", as.character(sum(abs(dfb[,2]) > DFBETAcut)), "influential points.", sep = " ")
+paste("Using DFBETAS, for predictor 2, we get", as.character(sum(abs(dfb[,3]) > DFBETAcut)), "influential points.", sep = " ")
+vif(mod)
+AICc6test <- AIC(mod) + (2*(p+2)*(p+3)/(n-p-1))
+```
+
